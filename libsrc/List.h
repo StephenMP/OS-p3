@@ -36,7 +36,7 @@ struct list {
  */
 ListPtr createList(int(*compareTo)(const void *, const void *),
                    char * (*toString)(const void *),
-		           void (*freeObject)(const void *)
+		           void (*freeObject)(const void *),
                    int poolsize);
 
 /**
