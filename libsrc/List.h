@@ -16,11 +16,14 @@ typedef struct list * ListPtr;
 
 struct list {
   int size;
+  int poolsize;
   NodePtr head;
   NodePtr tail;
   int (*compareTo)(const void *, const void *);
   char * (*toString)(const void *);
   void (*freeObject)(const void *);
+  pthread_mutex_t mutex;
+  pthread_cond_t condition;
 };
 
 /* prototypes of public methods */
@@ -31,12 +34,12 @@ struct list {
  *
  * @return a pointer to the allocated list.
  */
-ListPtr createList(int(*compareTo)(const void *, const void *), 
+ListPtr createList(int(*compareTo)(const void *, const void *),
                    char * (*toString)(const void *),
 		           void (*freeObject)(const void *));
 
 /**
- * Frees all elements of the given list and the <code>ListPtr</code> itself. 
+ * Frees all elements of the given list and the <code>ListPtr</code> itself.
  * Does nothing if L is <code>NULL</code>.
  *
  * @param L a pointer to a <code>List</code>.
@@ -103,8 +106,8 @@ NodePtr removeRear(ListPtr list);
 
 /**
  * Removes the node pointed to by the given node pointer from the list and returns
- * the pointer to it. Assumes that the node is a valid node in the list. If the node 
- * pointer is NULL, the function will do nothing and return NULL. 
+ * the pointer to it. Assumes that the node is a valid node in the list. If the node
+ * pointer is NULL, the function will do nothing and return NULL.
  *
  * @param list a pointer to a <code>List</code>.
  * @param node a pointer to the node to remove.
@@ -118,7 +121,7 @@ NodePtr removeNode(ListPtr list, NodePtr node);
  *
  * @param list a pointer to a <code>List</code>.
  * @param obj the object to search for.
- * @return a pointer to the node that was found. Or <code>NULL</code> if a node with the given key is not 
+ * @return a pointer to the node that was found. Or <code>NULL</code> if a node with the given key is not
  * found or the list is <code>NULL</code> or empty.
  */
 NodePtr search(const ListPtr list, const void * obj);
@@ -139,7 +142,7 @@ void printList(const ListPtr L);
 
 /**
  * Prints the list with format for jobs for p1
- * 
+ *
  * @param L a pointer to a <code>List</code>
  */
 void printJobs(const ListPtr L);
@@ -148,7 +151,7 @@ void printJobs(const ListPtr L);
  * Grabs a hook to the beginning of the list
  * to allow for easy iteration of the list
  * elements.
- * 
+ *
  * @param L a pointer to a <code>List</code>
  * @return <code>Node</code> contained in head
  */

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <pthread.h>
 #include "List.h"
 
 /*
@@ -14,19 +15,24 @@ static void print(const NodePtr node, char * (*toString)(const void *));
 static void print_jobs(const NodePtr node, char * (*toString)(const void *));
 
 ListPtr createList(int (*compareTo)(const void *, const void *),
-		   char * (*toString)(const void *), void (*freeObject)(const void *))
+		   char * (*toString)(const void *), void (*freeObject)(const void *), int poolsize)
 {
 	/* Initialize the list */
 	ListPtr list;
 	list = (ListPtr)malloc(sizeof(List));
 
 	/* Setup list instance data */
-	list->size = 0;
+    list->size = 0;
+	list->poolsize = poolsize;
 	list->head = NULL;
 	list->tail = NULL;
 	list->compareTo = compareTo;
 	list->toString = toString;
 	list->freeObject = freeObject;
+
+    /* Initialize monitor */
+    pthread_mutex_init(&(list->mutex), NULL);
+    pthread_cond_init(&(list->condition), NULL);
 
 	/* Throw back the pointer to it */
 	return list;
