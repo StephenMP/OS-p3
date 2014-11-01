@@ -8,10 +8,6 @@
    Contains functions to manipulate a doubly-linked list.
  */
 
-/* private methods */
-static void print(const NodePtr node, char * (*toString)(const void *));
-static void print_jobs(const NodePtr node, char * (*toString)(const void *));
-
 /*****************************/
 /** Constructor and free-er **/
 /*****************************/
@@ -41,22 +37,6 @@ ListPtr createList(int (*compareTo)(const void *, const void *),
 	return list;
 }
 
-void freeList(const ListPtr list)
-{
-    pthread_mutex_t m;
-    pthread_cond_t c;
-
-    pthread_mutex_lock(&(list->mutex));
-    m = list->mutex;
-    c = list->condition;
-    _freeList(list);
-    pthread_mutex_unlock(&(list->mutex));
-
-	/* Free the pthread stuff */
-	pthread_mutex_destroy(&m);
-	pthread_cond_destroy(&c);
-}
-
 /*************************************************/
 /** Static functions which actually do the work **/
 /*************************************************/
@@ -84,8 +64,6 @@ void _freeList(const ListPtr list)
 
 	/* Free the list pointer */
 	free(list);
-
-	return m;
 }
 
 static Boolean _isEmpty(const ListPtr list)
@@ -199,6 +177,22 @@ static NodePtr _removeRear(ListPtr list)
 /*****************************************************/
 /** Non-static functions acting as a thread monitor **/
 /*****************************************************/
+void freeList(const ListPtr list)
+{
+    pthread_mutex_t m;
+    pthread_cond_t c;
+
+    pthread_mutex_lock(&(list->mutex));
+    m = list->mutex;
+    c = list->condition;
+    _freeList(list);
+    pthread_mutex_unlock(&(list->mutex));
+
+	/* Free the pthread stuff */
+	pthread_mutex_destroy(&m);
+	pthread_cond_destroy(&c);
+}
+
 void addAtFront(ListPtr list, NodePtr node)
 {
 	pthread_mutex_lock(&(list->mutex));
