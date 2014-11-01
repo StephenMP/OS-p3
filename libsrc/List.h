@@ -17,13 +17,15 @@ typedef struct list * ListPtr;
 struct list {
   int size;
   int poolsize;
+  Boolean finish;
   NodePtr head;
   NodePtr tail;
   int (*compareTo)(const void *, const void *);
   char * (*toString)(const void *);
   void (*freeObject)(const void *);
   pthread_mutex_t mutex;
-  pthread_cond_t condition;
+  pthread_cond_t conditionAdd;
+  pthread_cond_t conditionRemove;
 };
 
 /* prototypes of public methods */
