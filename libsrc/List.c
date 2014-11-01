@@ -57,76 +57,6 @@ void freeList(const ListPtr list)
 	pthread_cond_destroy(&c);
 }
 
-/*****************************************************/
-/** Non-static functions acting as a thread monitor **/
-/*****************************************************/
-void addAtFront(ListPtr list, NodePtr node)
-{
-	pthread_mutex_lock(&(list->mutex));
-	while(_isFull(list)) {
-		pthread_cond_wait(&(list->condition), &(list->mutex));
-	}
-
-	_addAtFront(list, node);
-
-	pthread_cond_signal(&(list->condition));
-	pthread_mutex_unlock(&(list->mutex));
-}
-
-void addAtRear(ListPtr list, NodePtr node)
-{
-	pthread_mutex_lock(&(list->mutex));
-	while(_isFull(list)) {
-		pthread_cond_wait(&(list->condition), &(list->mutex));
-	}
-
-	_addAtRear(list, node);
-
-	pthread_cond_signal(&(list->condition));
-	pthread_mutex_unlock(&(list->mutex));
-}
-
-NodePtr removeFront(ListPtr list)
-{
-	NodePtr result = NULL;
-
-	pthread_mutex_lock(&(list->mutex));
-	while(_isEmpty(list)) {
-		pthread_cond_wait(&(list->condition), &(list->mutex));
-	}
-
-	result = _removeFront(list);
-
-	pthread_cond_signal(&(list->condition));
-	pthread_mutex_unlock(&(list->mutex));
-
-	return result;
-}
-
-NodePtr removeRear(ListPtr list)
-{
-	NodePtr result = NULL;
-
-	pthread_mutex_lock(&(list->mutex));
-	while(_isEmpty(list)) {
-		pthread_cond_wait(&(list->condition), &(list->mutex));
-	}
-
-	result = _removeRear(list);
-
-	pthread_cond_signal(&(list->condition));
-	pthread_mutex_unlock(&(list->mutex));
-
-	return result;
-}
-
-void finishUp(ListPtr list)
-{
-    pthread_mutex_lock(&(list->mutex));
-    pthread_cond_broadcast(&(list->condition));
-    pthread_mutex_unlock(&(list->mutex));
-}
-
 /*************************************************/
 /** Static functions which actually do the work **/
 /*************************************************/
@@ -264,5 +194,75 @@ static NodePtr _removeRear(ListPtr list)
 	list->size--;
 
 	return tailNode;
+}
+
+/*****************************************************/
+/** Non-static functions acting as a thread monitor **/
+/*****************************************************/
+void addAtFront(ListPtr list, NodePtr node)
+{
+	pthread_mutex_lock(&(list->mutex));
+	while(_isFull(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	_addAtFront(list, node);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+}
+
+void addAtRear(ListPtr list, NodePtr node)
+{
+	pthread_mutex_lock(&(list->mutex));
+	while(_isFull(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	_addAtRear(list, node);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+}
+
+NodePtr removeFront(ListPtr list)
+{
+	NodePtr result = NULL;
+
+	pthread_mutex_lock(&(list->mutex));
+	while(_isEmpty(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	result = _removeFront(list);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+
+	return result;
+}
+
+NodePtr removeRear(ListPtr list)
+{
+	NodePtr result = NULL;
+
+	pthread_mutex_lock(&(list->mutex));
+	while(_isEmpty(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	result = _removeRear(list);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+
+	return result;
+}
+
+void finishUp(ListPtr list)
+{
+    pthread_mutex_lock(&(list->mutex));
+    pthread_cond_broadcast(&(list->condition));
+    pthread_mutex_unlock(&(list->mutex));
 }
 
