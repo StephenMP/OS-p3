@@ -70,18 +70,12 @@ void _freeList(const ListPtr list)
 
 static Boolean _isEmpty(const ListPtr list)
 {
-    if(list->size == 0)
-        return TRUE;
-
-    return FALSE;
+	return (list->size == 0);
 }
 
 static Boolean _isFull(ListPtr list)
 {
-    if(list->size == list->poolsize)
-        return TRUE;
-
-    return FALSE;
+	return (list->size == list->poolsize);
 }
 
 static void _addAtFront(ListPtr list, NodePtr node)
@@ -179,21 +173,29 @@ static NodePtr _removeRear(ListPtr list)
 	return tailNode;
 }
 
-/*****************************************************/
-/** Non-static functions acting as a thread monitor **/
-/*****************************************************/
+/*****************************************************************/
+/** Non-static functions acting as a thread monitor via wrapper **/
+/*****************************************************************/
 void freeList(const ListPtr list)
 {
-    pthread_mutex_t m;
-    pthread_cond_t ca;
-    pthread_cond_t cr;
+	/* Make handles to our pthread stuff */
+	pthread_mutex_t m;
+	pthread_cond_t ca;
+	pthread_cond_t cr;
 
-    pthread_mutex_lock(&(list->mutex));
-    m = list->mutex;
-    ca = list->conditionAdd;
-    cr = list->conditionRemove;
-    _freeList(list);
-    pthread_mutex_unlock(&(list->mutex));
+	/* Lock it down */
+	pthread_mutex_lock(&(list->mutex));
+
+	/* Get handle to our pthread stuff */
+	m = list->mutex;
+	ca = list->conditionAdd;
+	cr = list->conditionRemove;
+
+	/* Free our list */
+	_freeList(list);
+
+	/* Unlock it */
+	pthread_mutex_unlock(&(list->mutex));
 
 	/* Free the pthread stuff */
 	pthread_mutex_destroy(&m);
@@ -203,18 +205,22 @@ void freeList(const ListPtr list)
 
 void addAtFront(ListPtr list, NodePtr node)
 {
+	/* Lock it down and wait if we are at poolsize */
 	pthread_mutex_lock(&(list->mutex));
 	while(_isFull(list))
 		pthread_cond_wait(&(list->conditionAdd), &(list->mutex));
 
+	/* Add the node */
 	_addAtFront(list, node);
 
+	/* Signal consumers and unlock */
 	pthread_cond_signal(&(list->conditionRemove));
 	pthread_mutex_unlock(&(list->mutex));
 }
 
 void addAtRear(ListPtr list, NodePtr node)
 {
+	/* Same thing as above */
 	pthread_mutex_lock(&(list->mutex));
 	while(_isFull(list))
 		pthread_cond_wait(&(list->conditionAdd), &(list->mutex));
@@ -227,22 +233,28 @@ void addAtRear(ListPtr list, NodePtr node)
 
 NodePtr removeFront(ListPtr list)
 {
+	/* Make handle to the returned node */
 	NodePtr result = NULL;
 
+	/* Lock it and wait while we are empty or not yet finished */
 	pthread_mutex_lock(&(list->mutex));
 	while(_isEmpty(list) && !list->finish)
 		pthread_cond_wait(&(list->conditionRemove), &(list->mutex));
 
+	/* Remove and assign the node */
 	result = _removeFront(list);
 
+	/* Unlock and signal producers */
 	pthread_cond_signal(&(list->conditionAdd));
 	pthread_mutex_unlock(&(list->mutex));
 
+	/* Return the node */
 	return result;
 }
 
 NodePtr removeRear(ListPtr list)
 {
+	/* Same thing as above */
 	NodePtr result = NULL;
 
 	pthread_mutex_lock(&(list->mutex));
@@ -259,11 +271,14 @@ NodePtr removeRear(ListPtr list)
 
 void finishUp(ListPtr list)
 {
-    pthread_mutex_lock(&(list->mutex));
+	/* Lock it down (not necessary here, but good practice) */
+	pthread_mutex_lock(&(list->mutex));
 
-    list->finish = TRUE;
-    pthread_cond_broadcast(&(list->conditionRemove));
+	/* Let consumers know they can go ahead and finish up*/
+	list->finish = TRUE;
+	pthread_cond_broadcast(&(list->conditionRemove));
 
-    pthread_mutex_unlock(&(list->mutex));
+	/* Unlock it */
+	pthread_mutex_unlock(&(list->mutex));
 }
 
