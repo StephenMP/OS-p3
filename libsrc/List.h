@@ -48,22 +48,6 @@ ListPtr createList(int(*compareTo)(const void *, const void *),
 void freeList(const ListPtr L);
 
 /**
- * Returns the size of the given list.
- *
- * @param L a pointer to a <code>List</code>.
- * @return The current size of the list.
- */
-int getSize(const ListPtr L);
-
-/**
- * Checks if the list is empty.
- *
- * @param  L a pointer to a <code>List</code>.
- * @return true if the list is empty; false otherwise.
- */
-Boolean isEmpty(const ListPtr L);
-
-/**
  * Adds a node to the front of the list. After this method is called,
  * the given node will be the head of the list. (Node must be allocated
  * before it is passed to this function.) If the list and/or node are NULL,
@@ -106,57 +90,11 @@ NodePtr removeFront(ListPtr list);
 NodePtr removeRear(ListPtr list);
 
 /**
- * Removes the node pointed to by the given node pointer from the list and returns
- * the pointer to it. Assumes that the node is a valid node in the list. If the node
- * pointer is NULL, the function will do nothing and return NULL.
- *
- * @param list a pointer to a <code>List</code>.
- * @param node a pointer to the node to remove.
- * @return a pointer to the node that was removed.
- */
-NodePtr removeNode(ListPtr list, NodePtr node);
-
-/**
- * Searches the list for a node with the given key and returns the pointer to the
- * found node.
- *
- * @param list a pointer to a <code>List</code>.
- * @param obj the object to search for.
- * @return a pointer to the node that was found. Or <code>NULL</code> if a node with the given key is not
- * found or the list is <code>NULL</code> or empty.
- */
-NodePtr search(const ListPtr list, const void * obj);
-
-/**
- * Reverses the order of the given list.
+ * Allows the simulation to stop when producers are done
  *
  * @param L a pointer to a <code>List</code>.
  */
-void reverseList(ListPtr L);
-
-/**
- * Prints the list.
- *
- * @param L a pointer to a <code>List</code>.
- */
-void printList(const ListPtr L);
-
-/**
- * Prints the list with format for jobs for p1
- *
- * @param L a pointer to a <code>List</code>
- */
-void printJobs(const ListPtr L);
-
-/**
- * Grabs a hook to the beginning of the list
- * to allow for easy iteration of the list
- * elements.
- *
- * @param L a pointer to a <code>List</code>
- * @return <code>Node</code> contained in head
- */
-NodePtr getHead(ListPtr L);
+void finishUp(ListPtr L);
 
 #endif /* __LIST_H */
 

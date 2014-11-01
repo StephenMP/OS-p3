@@ -4,25 +4,28 @@
 #include "List.h"
 
 /*
-
    list.c
    Contains functions to manipulate a doubly-linked list.
-
  */
 
 /* private methods */
 static void print(const NodePtr node, char * (*toString)(const void *));
 static void print_jobs(const NodePtr node, char * (*toString)(const void *));
 
+/*****************************/
+/** Constructor and free-er **/
+/*****************************/
 ListPtr createList(int (*compareTo)(const void *, const void *),
-		   char * (*toString)(const void *), void (*freeObject)(const void *), int poolsize)
+                   char * (*toString)(const void *),
+                   void (*freeObject)(const void *),
+                   int poolsize)
 {
 	/* Initialize the list */
 	ListPtr list;
 	list = (ListPtr)malloc(sizeof(List));
 
 	/* Setup list instance data */
-    list->size = 0;
+	list->size = 0;
 	list->poolsize = poolsize;
 	list->head = NULL;
 	list->tail = NULL;
@@ -30,9 +33,9 @@ ListPtr createList(int (*compareTo)(const void *, const void *),
 	list->toString = toString;
 	list->freeObject = freeObject;
 
-    /* Initialize monitor */
-    pthread_mutex_init(&(list->mutex), NULL);
-    pthread_cond_init(&(list->condition), NULL);
+	/* Initialize monitor */
+	pthread_mutex_init(&(list->mutex), NULL);
+	pthread_cond_init(&(list->condition), NULL);
 
 	/* Throw back the pointer to it */
 	return list;
@@ -40,8 +43,97 @@ ListPtr createList(int (*compareTo)(const void *, const void *),
 
 void freeList(const ListPtr list)
 {
+    pthread_mutex_t m;
+    pthread_cond_t c;
+
+    pthread_mutex_lock(&(list->mutex));
+    m = list->mutex;
+    c = list->condition;
+    _freeList(list);
+    pthread_mutex_unlock(&(list->mutex));
+
+	/* Free the pthread stuff */
+	pthread_mutex_destroy(&m);
+	pthread_cond_destroy(&c);
+}
+
+/*****************************************************/
+/** Non-static functions acting as a thread monitor **/
+/*****************************************************/
+void addAtFront(ListPtr list, NodePtr node)
+{
+	pthread_mutex_lock(&(list->mutex));
+	while(_isFull(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	_addAtFront(list, node);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+}
+
+void addAtRear(ListPtr list, NodePtr node)
+{
+	pthread_mutex_lock(&(list->mutex));
+	while(_isFull(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	_addAtRear(list, node);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+}
+
+NodePtr removeFront(ListPtr list)
+{
+	NodePtr result = NULL;
+
+	pthread_mutex_lock(&(list->mutex));
+	while(_isEmpty(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	result = _removeFront(list);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+
+	return result;
+}
+
+NodePtr removeRear(ListPtr list)
+{
+	NodePtr result = NULL;
+
+	pthread_mutex_lock(&(list->mutex));
+	while(_isEmpty(list)) {
+		pthread_cond_wait(&(list->condition), &(list->mutex));
+	}
+
+	result = _removeRear(list);
+
+	pthread_cond_signal(&(list->condition));
+	pthread_mutex_unlock(&(list->mutex));
+
+	return result;
+}
+
+void finishUp(ListPtr list)
+{
+    pthread_mutex_lock(&(list->mutex));
+    pthread_cond_broadcast(&(list->condition));
+    pthread_mutex_unlock(&(list->mutex));
+}
+
+/*************************************************/
+/** Static functions which actually do the work **/
+/*************************************************/
+void _freeList(const ListPtr list)
+{
 	/* Check corner case(s) */
-	if (list == NULL)
+	if(list == NULL)
 		return;
 
 	/* Setup local data to allow list traversal */
@@ -49,7 +141,7 @@ void freeList(const ListPtr list)
 	NodePtr temp;
 
 	/* Traverse list keeping ref to one node ahead and free current node */
-	while (curr != NULL) {
+	while(curr != NULL) {
 		temp = curr;
 		curr = curr->next;
 		freeNode(temp, list->freeObject);
@@ -62,25 +154,27 @@ void freeList(const ListPtr list)
 
 	/* Free the list pointer */
 	free(list);
+
+	return m;
 }
 
-int getSize(const ListPtr list)
+static Boolean _isEmpty(const ListPtr list)
 {
-	return list->size;
-}
-
-Boolean isEmpty(const ListPtr list)
-{
-	if (list->size == 0)
+	if(list->size == 0)
 		return TRUE;
 	else
 		return FALSE;
 }
 
-void addAtFront(ListPtr list, NodePtr node)
+static Boolean _isFull(ListPtr list)
+{
+	return ((list->size) == (list->poolsize));
+}
+
+static void _addAtFront(ListPtr list, NodePtr node)
 {
 	/* Check corner case(s) */
-	if (list == NULL || node == NULL)
+	if(list == NULL || node == NULL)
 		return;
 
 	/* Increment list size */
@@ -91,48 +185,48 @@ void addAtFront(ListPtr list, NodePtr node)
 	node->prev = NULL;
 
 	/* No current head */
-	if (list->head == NULL) {
+	if(list->head == NULL) {
 		list->head = node;
 		list->tail = node;
-	}else {
+	} else {
 		list->head->prev = node;
 		list->head = node;
 	}
 }
 
-void addAtRear(ListPtr list, NodePtr node)
+static void _addAtRear(ListPtr list, NodePtr node)
 {
 	/* Process is the same as above, only with the tail node */
-	if (list == NULL || node == NULL)
+	if(list == NULL || node == NULL)
 		return;
 
 	list->size++;
 	node->next = NULL;
 	node->prev = list->tail;
-	if (list->head == NULL) {
+	if(list->head == NULL) {
 		list->head = node;
 		list->tail = node;
-	}else {
+	} else {
 		list->tail->next = node;
 		list->tail = node;
 	}
 }
 
-NodePtr removeFront(ListPtr list)
+static NodePtr _removeFront(ListPtr list)
 {
 	/* Check corner case(s) */
-	if (list == NULL || list->head == NULL)
+	if(list == NULL || list->head == NULL)
 		return NULL;
 
 	/* Ref to node to delete */
 	NodePtr headNode = list->head;
 
 	/* Removing handles differently based on # of nodes in list*/
-	if (list->size > 1) {
+	if(list->size > 1) {
 		NodePtr afterHeadNode = list->head->next;
 		afterHeadNode->prev = NULL;
 		list->head = afterHeadNode;
-	}else {
+	} else {
 		list->head = NULL;
 		list->tail = NULL;
 	}
@@ -148,19 +242,19 @@ NodePtr removeFront(ListPtr list)
 	return headNode;
 }
 
-NodePtr removeRear(ListPtr list)
+static NodePtr _removeRear(ListPtr list)
 {
 	/* Same as removeFront, only with tail node */
-	if (list == NULL || list->head == NULL)
+	if(list == NULL || list->head == NULL)
 		return NULL;
 
 	NodePtr tailNode = list->tail;
 
-	if (list->size > 1) {
+	if(list->size > 1) {
 		NodePtr beforeTail = list->tail->prev;
 		beforeTail->next = NULL;
 		list->tail = beforeTail;
-	}else {
+	} else {
 		list->head = NULL;
 		list->tail = NULL;
 	}
@@ -170,137 +264,5 @@ NodePtr removeRear(ListPtr list)
 	list->size--;
 
 	return tailNode;
-}
-
-NodePtr removeNode(ListPtr list, NodePtr node)
-{
-	/* Check corner case(s) */
-	if (list == NULL || list->head == NULL || node == NULL)
-		return NULL;
-
-	/* Use search to check that node is in list */
-	NodePtr result = search(list, node->obj);
-
-	/* Removal is handled based on specific case */
-	if (result == list->head)
-		return removeFront(list);
-	if (result == list->tail)
-		return removeRear(list);
-	if (result == NULL)
-		return NULL;
-
-	NodePtr next = result->next;
-	NodePtr prev = result->prev;
-
-	next->prev = prev;
-	prev->next = next;
-
-	list->size--;
-
-	return result;
-}
-
-NodePtr search(const ListPtr list, const void *obj)
-{
-	/* Check corner case(s) */
-	if (list == NULL || list->head == NULL || obj == NULL)
-		return NULL;
-
-	/* Since list is doubly, we can traverse both forward and backward to search */
-	NodePtr hCurr = list->head;
-	NodePtr tCurr = list->tail;
-	int i;
-	for (i = 0; i <= (list->size) / 2; i++) {
-		if (list->compareTo(hCurr->obj, obj) == TRUE)
-			return hCurr;
-		if (list->compareTo(tCurr->obj, obj) == TRUE)
-			return tCurr;
-
-		hCurr = hCurr->next;
-		tCurr = tCurr->prev;
-	}
-
-	return NULL;
-}
-
-NodePtr getHead(ListPtr list)
-{
-	return list->head;
-}
-
-void reverseList(ListPtr list)
-{
-	/* Check corner case(s) */
-	if (list == NULL || list->head == NULL)
-		return;
-
-	/* Setup references */
-	NodePtr temp = NULL;
-	NodePtr curr = list->head;
-	NodePtr hRef = list->head;
-
-	/*
-	 * 1) Use temp to hold reference to curr's prev
-	 * 2) Reassign curr's prev to be it's next (reverse what it's referencing
-	 * 3) Reassign curr's next to temp (curr's prev, reversing it's reference)
-	 * 4) Move 'forward' (curr's prev points to the next node in the list)
-	 */
-	while (curr != NULL) {
-		temp = curr->prev;
-		curr->prev = curr->next;
-		curr->next = temp;
-		curr = curr->prev;
-	}
-
-	/* Since curr can be null prior to reassigning temp, we need to handle it */
-	if (temp != NULL) {
-		list->head = temp->prev;
-		list->tail = hRef;
-	}
-}
-
-void printJobs(const ListPtr list)
-{
-	if (list)
-		print_jobs(list->head, list->toString);
-}
-
-void printList(const ListPtr list)
-{
-	if (list)
-		print(list->head, list->toString);
-}
-
-static void print(const NodePtr node, char * (*toString)(const void *))
-{
-	int count = 0;
-	char *output;
-	NodePtr temp = node;
-	while (temp) {
-		output = (*toString)(temp->obj);
-		printf(" %s -->", output);
-		free(output);
-		temp = temp->next;
-		count++;
-		if ((count % 6) == 0)
-			printf("\n");
-	}
-	printf(" NULL \n");
-}
-
-static void print_jobs(const NodePtr node, char * (*toString)(const void *))
-{
-	int count = 0;
-	char *output;
-	NodePtr temp = node;
-	while (temp) {
-		output = (*toString)(temp->obj);
-		printf("%s\n", output);
-		free(output);
-		temp = temp->next;
-		count++;
-		if ((count % 6) == 0)
-			printf("\n");
-	}
 }
 
