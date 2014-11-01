@@ -204,10 +204,8 @@ void freeList(const ListPtr list)
 void addAtFront(ListPtr list, NodePtr node)
 {
 	pthread_mutex_lock(&(list->mutex));
-	while(_isFull(list)) {
+	while(_isFull(list))
 		pthread_cond_wait(&(list->conditionAdd), &(list->mutex));
-		printf("Waiting A\n");
-	}
 
 	_addAtFront(list, node);
 
@@ -218,10 +216,8 @@ void addAtFront(ListPtr list, NodePtr node)
 void addAtRear(ListPtr list, NodePtr node)
 {
 	pthread_mutex_lock(&(list->mutex));
-	while(_isFull(list)) {
+	while(_isFull(list))
 		pthread_cond_wait(&(list->conditionAdd), &(list->mutex));
-		printf("Waiting A\n");
-	}
 
 	_addAtRear(list, node);
 
@@ -234,9 +230,8 @@ NodePtr removeFront(ListPtr list)
 	NodePtr result = NULL;
 
 	pthread_mutex_lock(&(list->mutex));
-	while(_isEmpty(list) && !list->finish) {
+	while(_isEmpty(list) && !list->finish)
 		pthread_cond_wait(&(list->conditionRemove), &(list->mutex));
-	}
 
 	result = _removeFront(list);
 
@@ -251,9 +246,8 @@ NodePtr removeRear(ListPtr list)
 	NodePtr result = NULL;
 
 	pthread_mutex_lock(&(list->mutex));
-	while(_isEmpty(list) && !list->finish) {
+	while(_isEmpty(list) && !list->finish)
 		pthread_cond_wait(&(list->conditionRemove), &(list->mutex));
-	}
 
 	result = _removeRear(list);
 
@@ -265,13 +259,11 @@ NodePtr removeRear(ListPtr list)
 
 void finishUp(ListPtr list)
 {
-    printf("Broadcasting %d\n", list->size);
-
     pthread_mutex_lock(&(list->mutex));
+
     list->finish = TRUE;
     pthread_cond_broadcast(&(list->conditionRemove));
-    pthread_mutex_unlock(&(list->mutex));
 
-    printf("Broadcasted %d\n", list->size);
+    pthread_mutex_unlock(&(list->mutex));
 }
 
